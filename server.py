@@ -1,13 +1,13 @@
 import asyncio
 import time
-import sys
 
 
 serverID = "Bailey"
 READ_BUFFER = 255
 
 clientInfo = []
-def update_clientInfo(newmsg):
+def update_clientInfo(unsplit_msg):
+    newmsg = unsplit_msg.split(' ')
     for i in range (0, len(clientInfo)):
         if clientInfo[i][3] == newmsg[3]:
             clientInfo[i] = newmsg
@@ -18,52 +18,57 @@ def get_clientInfo(client):
     for i in range (0, len(clientInfo)):
         if clientInfo[i][3] == client:
             return (" ".join(clientInfo[i]))
-    print("Client was not found")
-    sys.exit(1)
+    raise Exception("Client was not found")
 
-async def echo(message, writer, data):
-    print(f"Received {message!r}")
-    print(f"Send: {message!r}")
-    writer.write(data)
-    await writer.drain()
+def make_error_msg(message):
+    return "? " + message
 
-async def respond_IAMAT(received_msg, writer):
+async def respond_IAMAT(received_msg):
     print("Responding to IAMAT")
-    time_diff = time.time() - float(received_msg[3])
-    if time_diff >= 0:
-        time_diff = "+" + str(time_diff)
-    else:
-        time_diff = "-" + str(time_diff)
+    try:
+        split_msg = received_msg.split(' ')
+        time_diff = time.time() - float(split_msg[3])
+        if time_diff >= 0:
+            time_diff = "+" + str(time_diff)
+        else:
+            time_diff = "-" + str(time_diff)
+        message = " ".join(["AT", serverID, time_diff, split_msg[1], split_msg[2], split_msg[3]])
+        update_clientInfo(message)
 
-    split_message = ["AT", serverID, time_diff, received_msg[1], received_msg[2], received_msg[3]]
-    message = " ".join(split_message)
-    update_clientInfo(split_message)
-    writer.write(message.encode())
-    await writer.drain()
+    except Exception:
+        message = make_error_msg(received_msg)
 
-async def respond_WHATSAT(received_msg, writer):
+    return message
+
+
+async def respond_WHATSAT(received_msg):
     print("Responding to WHATSAT")
-    if (int(received_msg[2]) > 50) or (int(received_msg[3]) > 20):
-        print("Received invalid arguments from client")
-        sys.exit(1)
+    try:
+        split_msg = received_msg.split(' ')
+        if (int(split_msg[2]) > 50) or (int(split_msg[3]) > 20):
+            raise Exception("Arguments are too large")
+        message = (get_clientInfo(split_msg[1]) + " Google place info")
 
-    message = (get_clientInfo(received_msg[1]) + " Google place info")
-    writer.write(message.encode())
-    await writer.drain()
+    except Exception:
+        message = make_error_msg(received_msg)
+
+    return message
 
 
 async def handle_client(reader, writer):
     data = await reader.read(READ_BUFFER)
     message = data.decode()
-    split_message = message.split(' ')      # handle leading or trailing white spaces?
+    split_message = message.split(' ')      # does it handle leading or trailing white spaces?
 
     if split_message[0] == "IAMAT":
-        await respond_IAMAT(split_message, writer)
+        output_msg = await respond_IAMAT(message)
     elif split_message[0] == "WHATSAT":
-        await respond_WHATSAT(split_message, writer)
+        output_msg = await respond_WHATSAT(message)
     else:
-        print("Received message but did not match any valid options")
+        output_msg = make_error_msg(message)
 
+    writer.write(output_msg.encode())
+    await writer.drain()
     print("Close the connection")
     writer.close()
     await writer.wait_closed()
