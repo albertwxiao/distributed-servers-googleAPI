@@ -12,16 +12,16 @@ def log_prefix(mode):
     match mode:
         case 0:
             # input from client
-            return ">+"
+            return "#>>"
         case 1:
             # output to client
-            return ">-"
+            return "#<<"
         case 2:
             # input from server
-            return "~+"
+            return "%>>"
         case 3:
             # output to server
-            return "~-"
+            return "%<<"
         case _:
             raise Exception("invalid mode")
 
@@ -58,7 +58,6 @@ async def respond_IAMAT(split_msg):
         time_diff = "-" + str(time_diff)
     message = " ".join(["AT", serverID, time_diff, split_msg[1], split_msg[2], split_msg[3]])
     update_clientInfo(message)
-    log_write(message, 0)
     return message
 
 
@@ -75,6 +74,7 @@ async def respond_WHATSAT(split_msg):
 async def handle_client(reader, writer):
     data = await reader.read(READ_BUFFER)
     message = data.decode()
+    log_write(message, 0)
 
     try:
         split_message = re.split('[ \n\r\t]+', message.strip())
@@ -89,6 +89,7 @@ async def handle_client(reader, writer):
     except Exception as e:
         output_msg = make_error_msg(message, e)
 
+    log_write(output_msg, 1)
     writer.write(output_msg.encode())
     await writer.drain()
     print("Close the connection")
