@@ -1,5 +1,6 @@
 import asyncio
 import time
+import re
 
 
 serverID = "Bailey"
@@ -20,37 +21,27 @@ def get_clientInfo(client):
             return (" ".join(clientInfo[i]))
     raise Exception("Client was not found")
 
-def make_error_msg(message):
-    return "? " + message
+def make_error_msg(message, e):
+    return "? " + message + str(e)
 
-async def respond_IAMAT(received_msg):
+async def respond_IAMAT(split_msg):
     print("Responding to IAMAT")
-    try:
-        split_msg = received_msg.split(' ')
-        time_diff = time.time() - float(split_msg[3])
-        if time_diff >= 0:
-            time_diff = "+" + str(time_diff)
-        else:
-            time_diff = "-" + str(time_diff)
-        message = " ".join(["AT", serverID, time_diff, split_msg[1], split_msg[2], split_msg[3]])
-        update_clientInfo(message)
-
-    except Exception:
-        message = make_error_msg(received_msg)
-
+    time_diff = time.time() - float(split_msg[3])
+    if time_diff >= 0:
+        time_diff = "+" + str(time_diff)
+    else:
+        time_diff = "-" + str(time_diff)
+    message = " ".join(["AT", serverID, time_diff, split_msg[1], split_msg[2], split_msg[3]])
+    update_clientInfo(message)
     return message
 
 
-async def respond_WHATSAT(received_msg):
+async def respond_WHATSAT(split_msg):
     print("Responding to WHATSAT")
-    try:
-        split_msg = received_msg.split(' ')
-        if (int(split_msg[2]) > 50) or (int(split_msg[3]) > 20):
-            raise Exception("Arguments are too large")
-        message = (get_clientInfo(split_msg[1]) + " Google place info")
-
-    except Exception:
-        message = make_error_msg(received_msg)
+    
+    if (int(split_msg[2]) > 50) or (int(split_msg[3]) > 20):
+        raise Exception("Arguments are too large")
+    message = (get_clientInfo(split_msg[1]) + " Google place info")
 
     return message
 
@@ -58,14 +49,19 @@ async def respond_WHATSAT(received_msg):
 async def handle_client(reader, writer):
     data = await reader.read(READ_BUFFER)
     message = data.decode()
-    split_message = message.split(' ')      # does it handle leading or trailing white spaces?
 
-    if split_message[0] == "IAMAT":
-        output_msg = await respond_IAMAT(message)
-    elif split_message[0] == "WHATSAT":
-        output_msg = await respond_WHATSAT(message)
-    else:
-        output_msg = make_error_msg(message)
+    try:
+        split_message = re.split('[ \n\r\t]+', message.strip())
+
+        if split_message[0] == "IAMAT":
+            output_msg = await respond_IAMAT(split_message)
+        elif split_message[0] == "WHATSAT":
+            output_msg = await respond_WHATSAT(split_message)
+        else:
+            raise Exception("Command did not match any options")
+
+    except Exception as e:
+        output_msg = make_error_msg(message, e)
 
     writer.write(output_msg.encode())
     await writer.drain()
