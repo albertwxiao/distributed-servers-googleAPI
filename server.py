@@ -4,6 +4,7 @@ import sys
 
 
 serverID = "Bailey"
+READ_BUFFER = 255
 
 clientInfo = []
 def update_clientInfo(newmsg):
@@ -46,13 +47,13 @@ async def respond_WHATSAT(received_msg, writer):
         print("Received invalid arguments from client")
         sys.exit(1)
 
-    message = (get_clientInfo(received_msg[1]) + "Google place info")
+    message = (get_clientInfo(received_msg[1]) + " Google place info")
     writer.write(message.encode())
     await writer.drain()
 
 
 async def handle_client(reader, writer):
-    data = await reader.read(100)
+    data = await reader.read(READ_BUFFER)
     message = data.decode()
     split_message = message.split(' ')      # handle leading or trailing white spaces?
 

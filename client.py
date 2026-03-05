@@ -1,6 +1,8 @@
 import asyncio
 import time
 
+READ_BUFFER = 8000
+
 async def tcp_client(message):
     reader, writer = await asyncio.open_connection(
         '127.0.0.1', 12001)
@@ -9,7 +11,7 @@ async def tcp_client(message):
     writer.write(message.encode())
     await writer.drain()
 
-    data = await reader.read(100)
+    data = await reader.read(READ_BUFFER)
     print(f'Received: {data.decode()!r}')
 
     print('Close the connection')
