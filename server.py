@@ -4,7 +4,31 @@ import re
 
 
 serverID = "Bailey"
+log_dir = "logs/bailey.txt"
 READ_BUFFER = 255
+
+
+def log_prefix(mode):
+    match mode:
+        case 0:
+            # input from client
+            return ">+"
+        case 1:
+            # output to client
+            return ">-"
+        case 2:
+            # input from server
+            return "~+"
+        case 3:
+            # output to server
+            return "~-"
+        case _:
+            raise Exception("invalid mode")
+
+def log_write(message, mode):
+    log_msg = log_prefix(mode) + " " + message + "\n"
+    with open(log_dir, 'a') as f:
+        f.write(log_msg)
 
 clientInfo = []
 def update_clientInfo(unsplit_msg):
@@ -19,10 +43,11 @@ def get_clientInfo(client):
     for i in range (0, len(clientInfo)):
         if clientInfo[i][3] == client:
             return (" ".join(clientInfo[i]))
-    raise Exception("Client was not found")
+    raise Exception("ClientNotFound")
 
 def make_error_msg(message, e):
     return "? " + message + str(e)
+
 
 async def respond_IAMAT(split_msg):
     print("Responding to IAMAT")
@@ -33,6 +58,7 @@ async def respond_IAMAT(split_msg):
         time_diff = "-" + str(time_diff)
     message = " ".join(["AT", serverID, time_diff, split_msg[1], split_msg[2], split_msg[3]])
     update_clientInfo(message)
+    log_write(message, 0)
     return message
 
 
@@ -40,7 +66,7 @@ async def respond_WHATSAT(split_msg):
     print("Responding to WHATSAT")
     
     if (int(split_msg[2]) > 50) or (int(split_msg[3]) > 20):
-        raise Exception("Arguments are too large")
+        raise Exception("InvalidPlaceArgs")
     message = (get_clientInfo(split_msg[1]) + " Google place info")
 
     return message
