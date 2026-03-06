@@ -1,1 +1,3 @@
-logs/
+logs
+notes.txt
+__pycache__
