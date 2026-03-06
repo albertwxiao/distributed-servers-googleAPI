@@ -6,8 +6,23 @@ from srv_bailey import Bailey
 from srv_bona import Bona
 
 
+IP_address = '127.0.0.1'
 READ_BUFFER = 255
 
+def get_port(ID):
+    if ID == "Bailey":
+        result = 12001
+    elif ID == "Bona":
+        result = 12032
+    elif ID == "Campbell":
+        result = 12063
+    elif ID == "Clark":
+        result = 12094
+    elif ID == "Jaquez":
+        result = 12125
+    else:
+        raise Exception("invalid ID")
+    return result
 
 def log_prefix(mode):
     match mode:
@@ -49,6 +64,19 @@ def get_clientInfo(client, clientInfo):
 def make_error_msg(message):
     return "? " + message
 
+async def send_to_servers(message, srv, source):
+    for adjServer in srv.connectedServers:
+        if adjServer != source:
+            await send_to_server(message, adjServer)
+
+async def send_to_server(message, dest):
+    reader, writer = await asyncio.open_connection(IP_address, get_port(dest))
+    print(f'Send: {message!r}')
+    writer.write(message.encode())
+    await writer.drain()
+    writer.close()
+    await writer.wait_closed()
+
 
 async def respond_IAMAT(split_msg, srv):
     print("Responding to IAMAT")
@@ -57,7 +85,7 @@ async def respond_IAMAT(split_msg, srv):
         time_diff = "+" + str(time_diff)
     else:
         time_diff = "-" + str(time_diff)
-    message = " ".join(["AT", srv.serverID, time_diff, split_msg[1], split_msg[2], split_msg[3]])
+    message = " ".join(["AT", srv.ID, time_diff, split_msg[1], split_msg[2], split_msg[3]])
     update_clientInfo(message, srv)
     return message
 
@@ -72,7 +100,7 @@ async def respond_WHATSAT(split_msg, srv):
     return message
 
 
-def handle_client_closure(srv):
+def make_handle_client(srv):
     async def handle_client(reader, writer):
         data = await reader.read(READ_BUFFER)
         message = data.decode()
@@ -102,8 +130,8 @@ def handle_client_closure(srv):
 
 
 async def start_server_instance(srv):
-    server = await asyncio.start_server(handle_client_closure(srv), '127.0.0.1', srv.port)
-    print('Started server on port', srv.port)
+    server = await asyncio.start_server(make_handle_client(srv), IP_address, get_port(srv.ID))
+    print('Started server on port', get_port(srv.ID))
 
     async with server:
         await server.serve_forever()
@@ -117,13 +145,12 @@ async def main():
     bailey = Bailey()
     bona = Bona()
 
-    async with asyncio.TaskGroup() as tg:
-        if args.srvID == "Bailey":
-            task1 = tg.create_task(start_server_instance(bailey))
-        elif args.srvID == "Bona":
-            task2 = tg.create_task(start_server_instance(bona))
-        else:
-            print("invalid args")
+    if args.srvID == "Bailey":
+        await start_server_instance(bailey)
+    elif args.srvID == "Bona":
+        await start_server_instance(bona)
+    else:
+        print("invalid args")
 
 
 if __name__ == "__main__":

@@ -4,11 +4,12 @@ import argparse
 
 clientID = "strawberry.cs.ucla.edu"
 location = "+34.063700-118.445400"
+IP_address = '127.0.0.1'
 READ_BUFFER = 8000
 
 async def tcp_client(message, port):
     reader, writer = await asyncio.open_connection(
-        '127.0.0.1', port)
+        IP_address, port)
 
     print(f'Send: {message!r}')
     writer.write(message.encode())

@@ -1,7 +1,7 @@
 
 class Bailey:
     def __init__(self):
-        self.port = 12001
-        self.serverID = "Bailey"
+        self.ID = "Bailey"
         self.log_dir = "logs/bailey.txt"
         self.clientInfo = []
+        self.connectedServers = ['Bona', 'Campbell']
