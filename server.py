@@ -4,6 +4,7 @@ import re
 import argparse
 from srv_bailey import Bailey
 from srv_bona import Bona
+from srv_campbell import Campbell
 
 
 IP_address = '127.0.0.1'
@@ -27,19 +28,16 @@ def get_port(ID):
 def log_prefix(mode):
     match mode:
         case 0:
-            # input from client
+            # input from client or server
             return "#>>"
         case 1:
             # output to client
             return "#<<"
-        case 2:
-            # input from server
-            return "%>>"
         case 3:
             # output to server
             return "%<<"
         case _:
-            raise Exception("invalid mode")
+            raise Exception("invalid write mode")
 
 def log_write(message, mode, log_dir):
     log_msg = log_prefix(mode) + " " + message + "\n"
@@ -61,21 +59,54 @@ def get_clientInfo(client, clientInfo):
             return (" ".join(clientInfo[i]))
     raise Exception("ClientNotFound")
 
+def check_clientInfo(split_msg, srv):
+    clientInfo = srv.clientInfo
+    clientID = split_msg[4]
+    timestamp = split_msg[6]
+    new_clientInfo = ["AT", split_msg[2], split_msg[3], split_msg[4], split_msg[5], split_msg[6]]
+    for i in range (0, len(clientInfo)):
+        if clientInfo[i][3] == clientID:
+            if float(timestamp) > float(clientInfo[i][5]):
+                clientInfo[i] = new_clientInfo
+                return True
+            else:
+                return False
+    clientInfo.append(new_clientInfo)
+    return True
+
 def make_error_msg(message):
     return "? " + message
 
-async def send_to_servers(message, srv, source):
-    for adjServer in srv.connectedServers:
-        if adjServer != source:
-            await send_to_server(message, adjServer)
+async def propagate_to_servers(og_msg, srv):
+    split_msg = og_msg.split(" ")
+    if (split_msg[0] == 'AT'):
+        send_msg = True
+        source = "client"
+        message = " ".join(["PROP", srv.ID, split_msg[1], split_msg[2], split_msg[3], split_msg[4], split_msg[5]])
+    elif (split_msg[0] == 'PROP'):
+        send_msg = check_clientInfo(split_msg, srv)
+        source = split_msg[1]
+        split_msg[1] = srv.ID
+        message = " ".join(split_msg)
+    else:
+        raise Exception("invalid message")
+
+    if send_msg:
+        for adjServer in srv.connectedServers:
+            if adjServer != source:
+                log_write(message, 3, srv.log_dir)
+                await send_to_server(message, adjServer)
 
 async def send_to_server(message, dest):
-    reader, writer = await asyncio.open_connection(IP_address, get_port(dest))
-    print(f'Send: {message!r}')
-    writer.write(message.encode())
-    await writer.drain()
-    writer.close()
-    await writer.wait_closed()
+    try:
+        reader, writer = await asyncio.open_connection(IP_address, get_port(dest))
+        writer.write(message.encode())
+        await writer.drain()
+        writer.close()
+        await writer.wait_closed()
+        print("Sent propogation msg to", str(dest))
+    except ConnectionError as e:
+        print(e)
 
 
 async def respond_IAMAT(split_msg, srv):
@@ -87,6 +118,7 @@ async def respond_IAMAT(split_msg, srv):
         time_diff = "-" + str(time_diff)
     message = " ".join(["AT", srv.ID, time_diff, split_msg[1], split_msg[2], split_msg[3]])
     update_clientInfo(message, srv)
+    await propagate_to_servers(message, srv)
     return message
 
 
@@ -113,6 +145,10 @@ def make_handle_client(srv):
                 output_msg = await respond_IAMAT(split_message, srv)
             elif split_message[0] == "WHATSAT":
                 output_msg = await respond_WHATSAT(split_message, srv)
+            elif split_message[0] == "PROP":
+                print("Received propagation msg")
+                await propagate_to_servers(message, srv)
+                output_msg = None
             else:
                 raise Exception("Command did not match any options")
 
@@ -120,9 +156,10 @@ def make_handle_client(srv):
             output_msg = make_error_msg(message)
             print("Error: ", str(e))
 
-        log_write(output_msg, 1, srv.log_dir)
-        writer.write(output_msg.encode())
-        await writer.drain()
+        if output_msg != None:
+            log_write(output_msg, 1, srv.log_dir)
+            writer.write(output_msg.encode())
+            await writer.drain()
         print("Close the connection")
         writer.close()
         await writer.wait_closed()
@@ -144,11 +181,14 @@ async def main():
 
     bailey = Bailey()
     bona = Bona()
+    campbell = Campbell()
 
     if args.srvID == "Bailey":
         await start_server_instance(bailey)
     elif args.srvID == "Bona":
         await start_server_instance(bona)
+    elif args.srvID == "Campbell":
+        await start_server_instance(campbell)
     else:
         print("invalid args")
 

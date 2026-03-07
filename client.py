@@ -41,7 +41,7 @@ async def main():
             await I_am_at(clientID, location, args.port)
         elif args.action == "what":
             await whats_at(clientID, 3, 2, args.port)
-    except Exception as e:
+    except ConnectionError as e:
         print(e)
     
 asyncio.run(main())
