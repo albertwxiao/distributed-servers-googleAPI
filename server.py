@@ -12,32 +12,31 @@ READ_BUFFER = 255
 
 def get_port(ID):
     if ID == "Bailey":
-        result = 12001
+        port = 12001
     elif ID == "Bona":
-        result = 12032
+        port = 12032
     elif ID == "Campbell":
-        result = 12063
+        port = 12063
     elif ID == "Clark":
-        result = 12094
+        port = 12094
     elif ID == "Jaquez":
-        result = 12125
+        port = 12125
     else:
         raise Exception("invalid ID")
-    return result
+    return port
 
 def log_prefix(mode):
-    match mode:
-        case 0:
-            # input from client or server
-            return "#>>"
-        case 1:
-            # output to client
-            return "#<<"
-        case 3:
-            # output to server
-            return "%<<"
-        case _:
-            raise Exception("invalid write mode")
+    if mode == 0:
+        # input from client or server
+        return "#>>"
+    elif mode == 1:
+        # output to client
+        return "#<<"
+    elif mode == 3:
+        # output to server
+        return "%<<"
+    else:
+        raise Exception("invalid write mode")
 
 def log_write(message, mode, log_dir):
     log_msg = log_prefix(mode) + " " + message + "\n"
@@ -179,15 +178,14 @@ async def main():
     parser.add_argument("srvID", help="The server ID.")
     args = parser.parse_args()
 
-    bailey = Bailey()
-    bona = Bona()
-    campbell = Campbell()
-
     if args.srvID == "Bailey":
+        bailey = Bailey()
         await start_server_instance(bailey)
     elif args.srvID == "Bona":
+        bona = Bona()
         await start_server_instance(bona)
     elif args.srvID == "Campbell":
+        campbell = Campbell()
         await start_server_instance(campbell)
     else:
         print("invalid args")

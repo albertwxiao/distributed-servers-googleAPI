@@ -4,4 +4,4 @@ class Bona:
         self.ID = "Bona"
         self.log_dir = "logs/bona.txt"
         self.clientInfo = []
-        self.connectedServers = ['Bailey', 'Campbell']
+        self.connectedServers = ['Bailey', 'Campbell', 'Clark']
