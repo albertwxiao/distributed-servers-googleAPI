@@ -7,6 +7,7 @@ from srv_bona import Bona
 from srv_campbell import Campbell
 from srv_clark import Clark
 from srv_jaquez import Jaquez
+from googleplace import request_google_api
 
 
 IP_address = '127.0.0.1'
@@ -57,7 +58,7 @@ def update_clientInfo(unsplit_msg, srv):
 def get_clientInfo(client, clientInfo):
     for i in range (0, len(clientInfo)):
         if clientInfo[i][3] == client:
-            return (" ".join(clientInfo[i]))
+            return (clientInfo[i])
     raise Exception("ClientNotFound")
 
 def check_clientInfo(split_msg, srv):
@@ -128,7 +129,12 @@ async def respond_WHATSAT(split_msg, srv):
     
     if (int(split_msg[2]) > 50) or (int(split_msg[3]) > 20):
         raise Exception("InvalidGoogPlaceArgs")
-    message = (get_clientInfo(split_msg[1], srv.clientInfo) + " Google place info")
+    clientInfo = get_clientInfo(split_msg[1], srv.clientInfo)
+    location = clientInfo[4]
+    radius = int(split_msg[2])
+    maxCount = int(split_msg[3])
+    google_place_info = await request_google_api(location, radius, maxCount)
+    message = (" ".join(clientInfo) + "\n" + google_place_info)
 
     return message
 
