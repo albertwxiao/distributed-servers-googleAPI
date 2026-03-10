@@ -5,6 +5,8 @@ import argparse
 from srv_bailey import Bailey
 from srv_bona import Bona
 from srv_campbell import Campbell
+from srv_clark import Clark
+from srv_jaquez import Jaquez
 
 
 IP_address = '127.0.0.1'
@@ -187,6 +189,12 @@ async def main():
     elif args.srvID == "Campbell":
         campbell = Campbell()
         await start_server_instance(campbell)
+    elif args.srvID == "Clark":
+        clark = Clark()
+        await start_server_instance(clark)
+    elif args.srvID == "Jaquez":
+        jaquez = Jaquez()
+        await start_server_instance(jaquez)
     else:
         print("invalid args")
 
