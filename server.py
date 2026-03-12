@@ -11,7 +11,7 @@ from googleplace import request_google_api
 
 
 IP_address = '127.0.0.1'
-READ_BUFFER = 255
+READ_BUFFER = 500
 
 def get_port(ID):
     if ID == "Bailey":
@@ -42,7 +42,7 @@ def log_prefix(mode):
         raise Exception("invalid write mode")
 
 def log_write(message, mode, log_dir):
-    log_msg = log_prefix(mode) + " " + message + "\n"
+    log_msg = log_prefix(mode) + " " + message
     with open(log_dir, 'a') as f:
         f.write(log_msg)
 
@@ -139,8 +139,8 @@ async def respond_WHATSAT(split_msg, srv):
     return message
 
 
-def make_handle_client(srv):
-    async def handle_client(reader, writer):
+def make_handle_connection(srv):
+    async def handle_connection(reader, writer):
         data = await reader.read(READ_BUFFER)
         message = data.decode()
         log_write(message, 0, srv.log_dir)
@@ -164,17 +164,18 @@ def make_handle_client(srv):
             print("Error: ", str(e))
 
         if output_msg != None:
+            output_msg += "\n"
             log_write(output_msg, 1, srv.log_dir)
             writer.write(output_msg.encode())
             await writer.drain()
         print("Close the connection")
         writer.close()
         await writer.wait_closed()
-    return handle_client
+    return handle_connection
 
 
 async def start_server_instance(srv):
-    server = await asyncio.start_server(make_handle_client(srv), IP_address, get_port(srv.ID))
+    server = await asyncio.start_server(make_handle_connection(srv), IP_address, get_port(srv.ID))
     print('Started server on port', get_port(srv.ID))
 
     async with server:
