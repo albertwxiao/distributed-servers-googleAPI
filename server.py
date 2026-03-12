@@ -42,7 +42,7 @@ def log_prefix(mode):
         raise Exception("invalid write mode")
 
 def log_write(message, mode, log_dir):
-    log_msg = log_prefix(mode) + " " + message
+    log_msg = log_prefix(mode) + " " + message + "\n"
     with open(log_dir, 'a') as f:
         f.write(log_msg)
 
@@ -80,7 +80,8 @@ def make_error_msg(message):
     return "? " + message
 
 async def propagate_to_servers(og_msg, srv):
-    split_msg = og_msg.split(" ")
+    split_msg = re.split('[ \n\r\t]+', og_msg.strip())
+    send_msg = False
     if (split_msg[0] == 'AT'):
         send_msg = True
         source = "client"
@@ -141,36 +142,47 @@ async def respond_WHATSAT(split_msg, srv):
 
 def make_handle_connection(srv):
     async def handle_connection(reader, writer):
-        data = await reader.read(READ_BUFFER)
-        message = data.decode()
-        log_write(message, 0, srv.log_dir)
+        while True:
+            try:
+                data = await reader.read(READ_BUFFER)
+                message = data.decode()
+                log_write(message, 0, srv.log_dir)
 
-        try:
-            split_message = re.split('[ \n\r\t]+', message.strip())
+                try:
+                    split_message = re.split('[ \n\r\t]+', message.strip())
 
-            if split_message[0] == "IAMAT":
-                output_msg = await respond_IAMAT(split_message, srv)
-            elif split_message[0] == "WHATSAT":
-                output_msg = await respond_WHATSAT(split_message, srv)
-            elif split_message[0] == "PROP":
-                print("Received propagation msg")
-                await propagate_to_servers(message, srv)
-                output_msg = None
-            else:
-                raise Exception("Command did not match any options")
+                    if split_message[0] == "IAMAT":
+                        output_msg = await respond_IAMAT(split_message, srv)
+                    elif split_message[0] == "WHATSAT":
+                        output_msg = await respond_WHATSAT(split_message, srv)
+                    elif split_message[0] == "PROP":
+                        print("Received propagation msg")
+                        await propagate_to_servers(message, srv)
+                        output_msg = None
+                    else:
+                        raise Exception("Command did not match any options")
 
-        except Exception as e:
-            output_msg = make_error_msg(message)
-            print("Error: ", str(e))
+                except Exception as e:
+                    output_msg = make_error_msg(message)
+                    print("Error: ", str(e))
 
-        if output_msg != None:
-            output_msg += "\n"
-            log_write(output_msg, 1, srv.log_dir)
-            writer.write(output_msg.encode())
-            await writer.drain()
+                if output_msg != None or output_msg != "":
+                    log_write(output_msg, 1, srv.log_dir)
+                    output_msg += "\n"
+                    writer.write(output_msg.encode())
+                    await writer.drain()
+            except ConnectionResetError:
+                print("Connection reset error")
+                break
+            except Exception as e:
+                print(e)
+                break
         print("Close the connection")
         writer.close()
-        await writer.wait_closed()
+        try:
+            await writer.wait_closed()
+        except BrokenPipeError:
+            print("Broken pipe error at line 184")
     return handle_connection
 
 
