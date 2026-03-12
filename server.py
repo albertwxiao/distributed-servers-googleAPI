@@ -42,9 +42,10 @@ def log_prefix(mode):
         raise Exception("invalid write mode")
 
 def log_write(message, mode, log_dir):
-    log_msg = log_prefix(mode) + " " + message + "\n"
-    with open(log_dir, 'a') as f:
-        f.write(log_msg)
+    if message != None:
+        log_msg = log_prefix(mode) + " " + message + "\n"
+        with open(log_dir, 'a') as f:
+            f.write(log_msg)
 
 def update_clientInfo(unsplit_msg, srv):
     clientInfo = srv.clientInfo
@@ -77,7 +78,8 @@ def check_clientInfo(split_msg, srv):
     return True
 
 def make_error_msg(message):
-    return "? " + message
+    if message != None:
+        return "? " + message
 
 async def propagate_to_servers(og_msg, srv):
     split_msg = re.split('[ \n\r\t]+', og_msg.strip())
@@ -166,7 +168,7 @@ def make_handle_connection(srv):
                     output_msg = make_error_msg(message)
                     print("Error: ", str(e))
 
-                if output_msg != None or output_msg != "":
+                if output_msg != None:
                     log_write(output_msg, 1, srv.log_dir)
                     output_msg += "\n"
                     writer.write(output_msg.encode())
@@ -182,7 +184,7 @@ def make_handle_connection(srv):
         try:
             await writer.wait_closed()
         except BrokenPipeError:
-            print("Broken pipe error at line 184")
+            print("Broken pipe error at line 185")
     return handle_connection
 
 
