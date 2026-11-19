@@ -11,7 +11,7 @@ async def post(location, radius, maxCount):
     my_headers = [
         ('Content-Type', 'application/json'),
         ('X-Goog-Api-Key', api_key),
-        ('X-Goog-FieldMask', 'places.name,places.location,places.id,places.rating,places.types') # need to include places.photos
+        ('X-Goog-FieldMask', 'places.name,places.location,places.id,places.rating,places.types')
     ]
 
     payload = {
@@ -28,7 +28,6 @@ async def post(location, radius, maxCount):
 
     async with aiohttp.ClientSession() as session:
         async with session.post(url, json=payload, headers=my_headers) as response:
-            # print("Status: ", response.status)
             response_json = await response.json()
     try:
         places_data = response_json["places"]
@@ -77,6 +76,5 @@ async def testmain():
     result = await request_google_api('+34.063700-118.445400', 1, 3)
     print(result)
 
-# asyncio.run(testmain())
 
 
